@@ -18,6 +18,7 @@ from __future__ import print_function
 
 import codecs
 import collections
+import sys
 import time
 
 import tensorflow as tf
@@ -32,6 +33,7 @@ from .utils import iterator_utils
 from .utils import misc_utils as utils
 from .utils import nmt_utils
 from .utils import vocab_utils
+from .utils import data_utils
 
 __all__ = ["create_infer_model", "load_data", "inference",
            "single_worker_inference", "multi_worker_inference"]
@@ -174,6 +176,58 @@ def inference(ckpt,
         jobid=jobid)
 
 
+def decode(ckpt, hparams, tokenizer, normalize_digits=True):
+  if not hparams.attention:
+    model_creator = nmt_model.Model
+  elif hparams.attention_architecture == "standard":
+    model_creator = attention_model.AttentionModel
+  elif hparams.attention_architecture in ["gnmt", "gnmt_v2"]:
+    model_creator = gnmt_model.GNMTModel
+  else:
+    raise ValueError("Unknown model architecture")
+
+  infer_model = create_infer_model(model_creator, hparams)
+
+  with tf.Session(
+    graph=infer_model.graph, config=utils.get_config_proto()) as sess:
+    model = model_helper.load_model(
+        infer_model.model, ckpt, sess, "infer")
+
+    utils.print_out("# Start decoding")
+    # Decode from standard input.
+    sys.stdout.write("> ")
+    sys.stdout.flush()
+    sentence = sys.stdin.readline()
+    while sentence:
+        words = tokenizer(sentence)
+        if normalize_digits:
+            words = [data_utils._DIGIT_RE.sub(b"0", w) for w in words]
+        sentence = ' '.join(words)
+        sentence = sentence.decode('utf8')
+        infer_data = [sentence]
+        sess.run(
+            infer_model.iterator.initializer,
+            feed_dict={
+                infer_model.src_placeholder: infer_data,
+                infer_model.batch_size_placeholder: hparams.infer_batch_size
+            })
+
+        nmt_outputs, infer_summary = model.decode(sess)
+
+        # get text translation
+        assert nmt_outputs.shape[0] == 1
+        translation = nmt_utils.get_translation(
+            nmt_outputs,
+            sent_id=0,
+            tgt_eos=hparams.eos,
+            bpe_delimiter=hparams.bpe_delimiter)
+
+        utils.print_out(b"%s" % translation)
+        print("> ", end="")
+        sys.stdout.flush()
+        sentence = sys.stdin.readline()
+
+
 def single_worker_inference(infer_model,
                             ckpt,
                             inference_input_file,
@@ -184,7 +238,6 @@ def single_worker_inference(infer_model,
 
   # Read data
   infer_data = load_data(inference_input_file, hparams)
-
   with tf.Session(
       graph=infer_model.graph, config=utils.get_config_proto()) as sess:
     loaded_infer_model = model_helper.load_model(

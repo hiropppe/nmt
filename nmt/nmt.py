@@ -234,6 +234,10 @@ def add_arguments(parser):
   parser.add_argument("--num_workers", type=int, default=1,
                       help="Number of workers (inference only).")
 
+  # Decode mode
+  parser.add_argument("--decode", default=False, action="store_true",
+                      help="Set to True for interactive decoding.")
+
 
 def create_hparams(flags):
   """Create training hparams."""
@@ -467,7 +471,14 @@ def run_main(flags, default_hparams, train_fn, inference_fn, target_session=""):
   else:
     tokenizer = data_utils.basic_tokenizer
 
-  if flags.inference_input_file:
+  if flags.decode:
+    ckpt = flags.ckpt
+    if not ckpt:
+      ckpt = tf.train.latest_checkpoint(out_dir)
+
+    inference.decode(ckpt, hparams, tokenizer)
+
+  elif flags.inference_input_file:
     # Inference indices
     hparams.inference_indices = None
     if flags.inference_list:
