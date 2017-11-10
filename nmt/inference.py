@@ -176,7 +176,7 @@ def inference(ckpt,
         jobid=jobid)
 
 
-def decode(ckpt, hparams, tokenizer, normalize_digits=True):
+def decode(ckpt, hparams, tokenizer, normalize_digits=False):
   if not hparams.attention:
     model_creator = nmt_model.Model
   elif hparams.attention_architecture == "standard":

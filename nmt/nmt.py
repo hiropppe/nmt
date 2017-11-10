@@ -138,10 +138,6 @@ def add_arguments(parser):
       Whether to use the source vocab and embeddings for both source and
       target.\
       """)
-  # parser.add_argument("--src_vocab_size", type=int, default=40000,
-  #                     help="Src vocabulary size.")
-  # parser.add_argument("--src_vocab_size", type=int, default=40000,
-  #                     help="Tgt vocabulary size.")
 
   # Sequence lengths
   parser.add_argument("--src_max_len", type=int, default=50,
@@ -295,8 +291,6 @@ def create_hparams(flags):
       tokenizer=flags.tokenizer,
 
       # Vocab
-      # src_vocab_size=flags.src_vocab_size,
-      # tgt_vocab_size=flags.tgt_vocab_size,
       sos=flags.sos if flags.sos else vocab_utils.SOS,
       eos=flags.eos if flags.eos else vocab_utils.EOS,
       bpe_delimiter=flags.bpe_delimiter,
@@ -504,21 +498,6 @@ def run_main(flags, default_hparams, train_fn, inference_fn, target_session=""):
             hparams.bpe_delimiter)
         utils.print_out("  %s: %.1f" % (metric, score))
   else:
-    # If vocab file is None or not exists, Extract from train file.
-    """
-    if not tf.gfile.Exists(hparams.src_vocab_file):
-      src_file = "%s.%s" % (hparams.train_prefix, hparams.src)
-      data_utils.create_vocabulary(hparams.src_vocab_file,
-        src_file,
-        hparams.src_vocab_size,
-        tokenizer=tokenizer)
-    if not (hparams.share_vocab or tf.gfile.Exists(hparams.tgt_vocab_file)):
-      tgt_file = "%s.%s" % (hparams.train_prefix, hparams.tgt)
-      data_utils.create_vocabulary(hparams.tgt_vocab_file,
-        tgt_file,
-        hparams.tgt_vocab_size,
-        tokenizer=tokenizer)
-    """
     # Train
     train_fn(hparams, target_session=target_session)
 
