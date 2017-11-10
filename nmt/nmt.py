@@ -30,6 +30,7 @@ from . import train
 from .utils import evaluation_utils
 from .utils import misc_utils as utils
 from .utils import vocab_utils
+from .utils import data_utils
 
 utils.check_tensorflow_version()
 
@@ -94,7 +95,7 @@ def add_arguments(parser):
   parser.add_argument("--decay_factor", type=float, default=0.98,
                       help="How much we decay.")
   parser.add_argument(
-      "--num_train_steps", type=int, default=12000, help="Num steps to train.")
+      "--num_train_steps", type=int, default=120000, help="Num steps to train.")
   parser.add_argument("--colocate_gradients_with_ops", type="bool", nargs="?",
                       const=True,
                       default=True,
@@ -137,6 +138,10 @@ def add_arguments(parser):
       Whether to use the source vocab and embeddings for both source and
       target.\
       """)
+  # parser.add_argument("--src_vocab_size", type=int, default=40000,
+  #                     help="Src vocabulary size.")
+  # parser.add_argument("--src_vocab_size", type=int, default=40000,
+  #                     help="Tgt vocabulary size.")
 
   # Sequence lengths
   parser.add_argument("--src_max_len", type=int, default=50,
@@ -220,6 +225,8 @@ def add_arguments(parser):
       """))
   parser.add_argument("--length_penalty_weight", type=float, default=0.0,
                       help="Length penalty for beam search.")
+  parser.add_argument("--tokenizer", type=str, default="mecab",
+                      help="Tokenizer to wakati inference mode input.")
 
   # Job info
   parser.add_argument("--jobid", type=int, default=0,
@@ -281,8 +288,11 @@ def create_hparams(flags):
       infer_batch_size=flags.infer_batch_size,
       beam_width=flags.beam_width,
       length_penalty_weight=flags.length_penalty_weight,
+      tokenizer=flags.tokenizer,
 
       # Vocab
+      # src_vocab_size=flags.src_vocab_size,
+      # tgt_vocab_size=flags.tgt_vocab_size,
       sos=flags.sos if flags.sos else vocab_utils.SOS,
       eos=flags.eos if flags.eos else vocab_utils.EOS,
       bpe_delimiter=flags.bpe_delimiter,
@@ -451,6 +461,12 @@ def run_main(flags, default_hparams, train_fn, inference_fn, target_session=""):
   # Load hparams.
   hparams = create_or_load_hparams(out_dir, default_hparams, flags.hparams_path)
 
+  # Tokenizer for wakati decode mode input.
+  if flags.tokenizer.lower() == 'mecab':
+    tokenizer = data_utils.mecab_tokenizer
+  else:
+    tokenizer = data_utils.basic_tokenizer
+
   if flags.inference_input_file:
     # Inference indices
     hparams.inference_indices = None
@@ -477,6 +493,21 @@ def run_main(flags, default_hparams, train_fn, inference_fn, target_session=""):
             hparams.bpe_delimiter)
         utils.print_out("  %s: %.1f" % (metric, score))
   else:
+    # If vocab file is None or not exists, Extract from train file.
+    """
+    if not tf.gfile.Exists(hparams.src_vocab_file):
+      src_file = "%s.%s" % (hparams.train_prefix, hparams.src)
+      data_utils.create_vocabulary(hparams.src_vocab_file,
+        src_file,
+        hparams.src_vocab_size,
+        tokenizer=tokenizer)
+    if not (hparams.share_vocab or tf.gfile.Exists(hparams.tgt_vocab_file)):
+      tgt_file = "%s.%s" % (hparams.train_prefix, hparams.tgt)
+      data_utils.create_vocabulary(hparams.tgt_vocab_file,
+        tgt_file,
+        hparams.tgt_vocab_size,
+        tokenizer=tokenizer)
+    """
     # Train
     train_fn(hparams, target_session=target_session)
 
