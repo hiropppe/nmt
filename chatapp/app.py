@@ -6,7 +6,6 @@ import argparse
 import os
 import sys
 import tensorflow as tf
-import time
 
 from flask import Flask
 from flask import request, render_template, jsonify
@@ -25,8 +24,10 @@ def index():
 
 @app.route("/chat/talk")
 def talk():
-    inpt = request.args.get("inpt", "")
-    reply = chatbot.decode(inpt.encode('utf8'))
+    inpt = request.args.get("inpt", "").encode('utf8')
+    print('IN> {:s}'.format(inpt))
+    reply = chatbot.decode(inpt)
+    print('OUT> {:s}'.format(reply))
     return jsonify({'reply': reply})
 
 
